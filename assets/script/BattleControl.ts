@@ -5,7 +5,7 @@ import HeroControl from './HeroControl';
 const {ccclass, property} = cc._decorator;
 
 @ccclass
-export default class NewClass extends cc.Component {
+export default class BattleControl extends cc.Component {
 
     // 英雄预制体
     @property(cc.Prefab)
