@@ -158,139 +158,178 @@ export default class NewClass extends cc.Component {
         // 设置英雄的状态
         attacker.state = state;
 
-        if (state === HeroStatus.HERO_STATE_MOVE) {
-            // 定义敌方阵营为1
-            let targetCamp: number = 1;
-            // 如果自己的阵营是1，则敌方阵营为0
-            if (attacker.camp === 1) {
-                targetCamp = 0;
-            }
-
-            for (let i = 0; i < Utils.HERO_COUNT * 2; i++) {
-                if (this.orderArray[i].camp === targetCamp && this.orderArray[i].state !== HeroStatus.HERO_STATE_DIE) {
-                    this.targetEnemy = this.orderArray[i];
-                    break;
-                }
-            }
-
-            // 一方阵营全部死亡
-            if (this.targetEnemy === null) return;
-
-            // 是否远程
-            let isLong: boolean;
-            if (attacker.camp === 1)
-                isLong = Utils.HeroListRight[attacker.id].long;
-            else
-                isLong = Utils.HeroListLeft[attacker.id].long;
-
-            // 如果是远程攻击，直接攻击，结束
-            if (isLong) {
-                this.setAnimState(attacker, HeroStatus.HERO_STATE_ATK);
-                return;
-            }
-
-
-            // 敌人的位置
-            let targetPos: cc.Vec2 = cc.v2(0, 0);
-            // 获取敌人的位置
-            if (targetCamp === 1) {
-                targetPos.x = -(Utils.HeroListLeft[this.targetEnemy.id].x + 40);
-                targetPos.y = Utils.HeroListLeft[this.targetEnemy.id].y;
-            } else {
-                targetPos.x = Utils.HeroListRight[this.targetEnemy.id].x + 40;
-                targetPos.y = Utils.HeroListRight[this.targetEnemy.id].y;
-            }
-
-            // 攻击者的节点，执行移动的动画
-            let atkHeroNode: cc.Node = this.leftHeroNode[attacker.id];
-            if (attacker.camp === 1) {
-                atkHeroNode = this.rightHeroNode[attacker.id];
-            }
-            cc.tween(atkHeroNode)
-                .to(0.5, {position: targetPos})
-                .call(e => {
-                    // 进入攻击状态
-                    this.setAnimState(attacker, HeroStatus.HERO_STATE_ATK);
-                })
-                .start()
-
-        } else if (state === HeroStatus.HERO_STATE_ATK) {
-
-            // 当前英雄的节点
-            let atkHeroNode: cc.Node = this.leftHeroNode[attacker.id];
-            if (attacker.camp === 1) {
-                atkHeroNode = this.rightHeroNode[attacker.id];
-            }
-
-            // 进行攻击动画
-            const skeleton: sp.Skeleton = atkHeroNode.getComponent(sp.Skeleton);
-            skeleton.setAnimation(0, 'Attack', false);
-            skeleton.setCompleteListener(trackEntry => {
-                console.log(222);
-                // 敌人的防御力
-                let targetDef: number;
-                // 攻击者的攻击力
-                let selfAtk: number;
-                // 敌人节点
-                let targetHandle: cc.Node = null;
-                // 攻击者返回的位置
-                let backPos: cc.Vec2 = cc.v2(0, 0);
-
-                if (attacker.camp === 1) {
-                    targetDef = Utils.HeroListLeft[this.targetEnemy.id].def;
-                    selfAtk = Utils.HeroListRight[attacker.id].atk;
-                    targetHandle = this.leftHeroNode[this.targetEnemy.id];
-                    backPos = cc.v2(-Utils.HeroListRight[attacker.id].x, Utils.HeroListRight[attacker.id].y);
-                } else {
-                    targetDef = Utils.HeroListRight[this.targetEnemy.id].def;
-                    selfAtk = Utils.HeroListLeft[attacker.id].atk;
-                    targetHandle = this.rightHeroNode[this.targetEnemy.id];
-                    backPos = cc.v2(Utils.HeroListLeft[attacker.id].x, Utils.HeroListLeft[attacker.id].y);
-
-                }
-                // 敌人的减少的血量
-                this.targetEnemy.blood += targetDef - selfAtk;
-
-                // 因为每个英雄的血量是100，所以不需要进行其他的处理，直接除以100得出百分比
-                targetHandle.getComponent(HeroControl).setBlood(this.targetEnemy.blood / 100);
-                // 如果敌人被攻击后血量大于0就掉血，否则死亡
-                if (this.targetEnemy.blood <= 0) {
-                    console.log('死亡');
-                    this.setAnimState(this.targetEnemy, HeroStatus.HERO_STATE_DIE);
-                }
-
-                skeleton.setCompleteListener(trackEntry => {
-                    console.log(1111);
-                });
-                // 回到原来的位置动画
-                skeleton.setAnimation(0, 'Run', false);
-                cc.tween(atkHeroNode)
-                    .to(0.2, {position: backPos})
-                    .call(e => {
-                        this.setAnimState(attacker, HeroStatus.HERO_STATE_WAIT);
-                    })
-                    .start();
-            });
-
-        } else if (state === HeroStatus.HERO_STATE_WAIT) {
-            let heroNode: cc.Node = this.leftHeroNode[attacker.id];
-            if (attacker.camp === 1) {
-                heroNode = this.rightHeroNode[attacker.id];
-            }
-            heroNode.getComponent(sp.Skeleton).animation = 'Idle';
-            this.orderIndex++;
-            this.nextAttack();
-        } else if (HeroStatus.HERO_STATE_DIE) {
-            let heroNode: cc.Node = this.leftHeroNode[attacker.id];
-            if (attacker.camp === 1) {
-                heroNode = this.rightHeroNode[attacker.id];
-            }
-            heroNode.getComponent(sp.Skeleton).setAnimation(0, 'Die', false);
-            heroNode.getComponent(sp.Skeleton).setCompleteListener(trackEntry => {
-                console.log(333);
-                heroNode.active = false;
-            })
+        switch (state) {
+            case HeroStatus.HERO_STATE_MOVE:
+                this.heroMoveAnim(attacker);
+                break;
+            case HeroStatus.HERO_STATE_ATK:
+                this.heroAtkAnim(attacker);
+                break;
+            case HeroStatus.HERO_STATE_WAIT:
+                this.heroWaitAnim(attacker);
+                break;
+            default:
+                this.heroDieAnim(attacker);
         }
     }
 
+    /**
+     * 英雄移动
+     * @param attacker 英雄属性
+     */
+    private heroMoveAnim(attacker: HeroBattleData): void {
+        // 定义敌方阵营为1
+        let targetCamp: number = 1;
+        // 如果自己的阵营是1，则敌方阵营为0
+        if (attacker.camp === 1) {
+            targetCamp = 0;
+        }
+
+        for (let i = 0; i < Utils.HERO_COUNT * 2; i++) {
+            if (this.orderArray[i].camp === targetCamp && this.orderArray[i].state !== HeroStatus.HERO_STATE_DIE) {
+                this.targetEnemy = this.orderArray[i];
+                break;
+            }
+        }
+
+        // 一方阵营全部死亡
+        if (this.targetEnemy === null) return;
+
+        // 是否远程
+        let isLong: boolean;
+        if (attacker.camp === 1)
+            isLong = Utils.HeroListRight[attacker.id].long;
+        else
+            isLong = Utils.HeroListLeft[attacker.id].long;
+
+        // 如果是远程攻击，直接攻击，结束
+        if (isLong) {
+            this.setAnimState(attacker, HeroStatus.HERO_STATE_ATK);
+            return;
+        }
+
+
+        // 敌人的位置
+        let targetPos: cc.Vec2 = cc.v2(0, 0);
+        // 获取敌人的位置
+        if (targetCamp === 1) {
+            targetPos.x = -(Utils.HeroListLeft[this.targetEnemy.id].x + 40);
+            targetPos.y = Utils.HeroListLeft[this.targetEnemy.id].y;
+        } else {
+            targetPos.x = Utils.HeroListRight[this.targetEnemy.id].x + 40;
+            targetPos.y = Utils.HeroListRight[this.targetEnemy.id].y;
+        }
+
+        // 攻击者的节点，执行移动的动画
+        let atkHeroNode: cc.Node = this.leftHeroNode[attacker.id];
+        if (attacker.camp === 1) {
+            atkHeroNode = this.rightHeroNode[attacker.id];
+        }
+        cc.tween(atkHeroNode)
+            .to(0.5, {position: targetPos})
+            .call(e => {
+                // 进入攻击状态
+                this.setAnimState(attacker, HeroStatus.HERO_STATE_ATK);
+            })
+            .start()
+
+    }
+
+    /**
+     * 英雄攻击
+     * @param attacker 英雄属性
+     */
+    private heroAtkAnim(attacker: HeroBattleData): void {
+
+        // 当前英雄的节点
+        let atkHeroNode: cc.Node = this.leftHeroNode[attacker.id];
+        if (attacker.camp === 1) {
+            atkHeroNode = this.rightHeroNode[attacker.id];
+        }
+
+        // 进行攻击动画
+        const skeleton: sp.Skeleton = atkHeroNode.getComponent(sp.Skeleton);
+        skeleton.setAnimation(0, 'Attack', false);
+        skeleton.setCompleteListener(trackEntry => {
+            console.log(222);
+            // 敌人的防御力
+            let targetDef: number;
+            // 攻击者的攻击力
+            let selfAtk: number;
+            // 敌人节点
+            let targetHandle: cc.Node = null;
+            // 攻击者返回的位置
+            let backPos: cc.Vec2 = cc.v2(0, 0);
+
+            if (attacker.camp === 1) {
+                targetDef = Utils.HeroListLeft[this.targetEnemy.id].def;
+                selfAtk = Utils.HeroListRight[attacker.id].atk;
+                targetHandle = this.leftHeroNode[this.targetEnemy.id];
+                backPos = cc.v2(-Utils.HeroListRight[attacker.id].x, Utils.HeroListRight[attacker.id].y);
+            } else {
+                targetDef = Utils.HeroListRight[this.targetEnemy.id].def;
+                selfAtk = Utils.HeroListLeft[attacker.id].atk;
+                targetHandle = this.rightHeroNode[this.targetEnemy.id];
+                backPos = cc.v2(Utils.HeroListLeft[attacker.id].x, Utils.HeroListLeft[attacker.id].y);
+
+            }
+            // 敌人的减少的血量
+            this.targetEnemy.blood += targetDef - selfAtk;
+
+            // 因为每个英雄的血量是100，所以不需要进行其他的处理，直接除以100得出百分比
+            targetHandle.getComponent(HeroControl).setBlood(this.targetEnemy.blood / 100);
+            // 如果敌人被攻击后血量大于0就掉血，否则死亡
+            if (this.targetEnemy.blood <= 0) {
+                console.log('死亡');
+                this.targetEnemy.state = HeroStatus.HERO_STATE_DIE;
+                this.setAnimState(this.targetEnemy, HeroStatus.HERO_STATE_DIE);
+            }
+
+            console.log(skeleton.getCurrent(0) instanceof sp.spine.TrackEntry);
+            skeleton.setCompleteListener(trackEntry => {
+                console.log(1111);
+            });
+            // 回到原来的位置动画
+            skeleton.setAnimation(0, 'Run', false);
+            cc.tween(atkHeroNode)
+                .to(0.2, {position: backPos})
+                .call(e => {
+                    this.setAnimState(attacker, HeroStatus.HERO_STATE_WAIT);
+                })
+                .start();
+        });
+    }
+
+    /**
+     * 英雄等待
+     * @param attacker 英雄数据
+     */
+    private heroWaitAnim(attacker: HeroBattleData): void {
+        let heroNode: cc.Node = this.leftHeroNode[attacker.id];
+        if (attacker.camp === 1) {
+            heroNode = this.rightHeroNode[attacker.id];
+        }
+        heroNode.getComponent(sp.Skeleton).animation = 'Idle';
+        this.orderIndex++;
+        this.nextAttack();
+    }
+
+    /**
+     * 英雄死亡
+     * @param attacker 英雄数据
+     */
+    private heroDieAnim(attacker: HeroBattleData): void {
+        let heroNode: cc.Node = this.leftHeroNode[attacker.id];
+        if (attacker.camp === 1) {
+            heroNode = this.rightHeroNode[attacker.id];
+        }
+        this.targetEnemy = null;
+        heroNode.getComponent(sp.Skeleton).setAnimation(0, 'Die', false);
+        heroNode.getComponent(sp.Skeleton).setCompleteListener(trackEntry => {
+            cc.tween(heroNode)
+                .to(0.5, {opacity: 0})
+                .removeSelf()
+                .start();
+        });
+    }
 }
