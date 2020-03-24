@@ -249,8 +249,8 @@ export default class NewClass extends cc.Component {
 
         // 进行攻击动画
         const skeleton: sp.Skeleton = atkHeroNode.getComponent(sp.Skeleton);
-        skeleton.setAnimation(0, 'Attack', false);
-        skeleton.setCompleteListener(trackEntry => {
+        const dieTrackEntry: sp.spine.TrackEntry = skeleton.setAnimation(0, 'Attack', false);
+        skeleton.setTrackCompleteListener(dieTrackEntry, trackEntry => {
             console.log(222);
             // 敌人的防御力
             let targetDef: number;
@@ -285,10 +285,6 @@ export default class NewClass extends cc.Component {
                 this.setAnimState(this.targetEnemy, HeroStatus.HERO_STATE_DIE);
             }
 
-            console.log(skeleton.getCurrent(0) instanceof sp.spine.TrackEntry);
-            skeleton.setCompleteListener(trackEntry => {
-                console.log(1111);
-            });
             // 回到原来的位置动画
             skeleton.setAnimation(0, 'Run', false);
             cc.tween(atkHeroNode)
@@ -324,8 +320,10 @@ export default class NewClass extends cc.Component {
             heroNode = this.rightHeroNode[attacker.id];
         }
         this.targetEnemy = null;
-        heroNode.getComponent(sp.Skeleton).setAnimation(0, 'Die', false);
-        heroNode.getComponent(sp.Skeleton).setCompleteListener(trackEntry => {
+        const skeleton: sp.Skeleton = heroNode.getComponent(sp.Skeleton);
+        const dieTrackEntry: sp.spine.TrackEntry = skeleton.setAnimation(0, 'Die', false);
+        skeleton.setTrackCompleteListener(dieTrackEntry, trackEntry => {
+            console.log(99999);
             cc.tween(heroNode)
                 .to(0.5, {opacity: 0})
                 .removeSelf()
